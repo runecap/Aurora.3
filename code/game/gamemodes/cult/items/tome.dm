@@ -186,15 +186,17 @@
 				R.color = scribe.species.blood_color
 		return
 	else
-		to_chat(user, span("cult", "The book seems full of illegible scribbles."))
+		to_chat(user, span("cult", [pick("The pages seem full of unfinished cartography of some distant world", "The pages are full of teachings of a new language", "The book seems full of cryptids and mythological beasts", "The pages seem to ramble on endlessly about some New World ideas", "The pages detail how to paint without paint", "The pages are blank")]))
 		return
 
 /obj/item/book/tome/examine(mob/user)
 	..(user)
 	if(!iscultist(user) || !isobserver(user))
-		desc = "An old, dusty tome with frayed edges and a sinister looking cover."
+		name = "thick book"
+		desc = "A thick book with even thicker pages."
+		iconstate = "book"
 	else
-		desc = "The scriptures of Nar-Sie, The One Who Sees, The Geometer of Blood. Contains the details of every ritual his followers could think of. Most of these are useless, though."
+		desc = "The scriptures of Nar-Sie, The One Who Sees, The Geometer of Blood. Contains the details of every ritual his followers could think of. It's said to veil itself in a false appearance for the unenlightened."
 
 /obj/item/book/tome/cultify()
 	return
