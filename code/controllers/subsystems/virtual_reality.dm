@@ -15,6 +15,13 @@ SUBSYSTEM_DEF(virtualreality)
 	var/list/boundnetworks = list(REMOTE_AI_ROBOT)
 	var/list/list/bounded = list()
 
+	//VAURCA REALM
+	var/list/realmspawn = list() //Spawn points
+	var/list/realm_areas = list()
+	var/list/realm_users = list() //Users and their permission level
+//	var/list/realmbanned_augs = list() //Unused, but a simple blacklist to skip over when creating realm avatars
+	var/unlocked = FALSE
+
 /datum/controller/subsystem/virtualreality/Initialize()
 	for(var/network in mechnetworks)
 		mechs[network] = list()
@@ -70,7 +77,7 @@ SUBSYSTEM_DEF(virtualreality)
 		languages = list(GLOB.all_languages[LANGUAGE_TCB])
 		if(old_mob.client)
 			old_mob.client.init_verbs() // We need to have the stat panel to update, so we call this directly
-		to_chat(old_mob, SPAN_NOTICE("System exited safely, we hope you enjoyed your stay."))
+		to_chat(old_mob, SPAN_NOTICE("System exited safely."))
 		old_mob = null
 	else
 		to_chat(src, SPAN_DANGER("Interface error, you cannot exit the system at this time."))
@@ -131,7 +138,7 @@ SUBSYSTEM_DEF(virtualreality)
 	speech_synthesizer_langs = list(GLOB.all_languages[LANGUAGE_TCB])
 
 // Handles saving of the original mob and assigning the new mob
-/datum/controller/subsystem/virtualreality/proc/mind_transfer(var/mob/living/M, var/mob/living/target)
+/datum/controller/subsystem/virtualreality/proc/mind_transfer(var/mob/living/M, var/mob/living/target, var/realm = FALSE)
 	var/new_ckey = M.ckey
 	target.old_mob = M
 	M.vr_mob = target
@@ -159,7 +166,11 @@ SUBSYSTEM_DEF(virtualreality)
 			spider.radio.recalculateChannels()
 
 	target.client.init_verbs()
-	to_chat(target, SPAN_NOTICE("Connection established, system suite active and calibrated."))
+	if(realm)
+		to_chat(target, SPAN_NOTICE("You feel your mind broaden and senses enhance as the connection establishes."))
+		to_chat(target, "<i><span class='game say'>Hivenet, <span class='name'>Cephalon</span> projects <span class='vaurca'>a new arrival.</span></span></i>")
+	else
+		to_chat(target, SPAN_NOTICE("Connection established, system suite active and calibrated."))
 	to_chat(target, SPAN_WARNING("To exit this mode, use the \"Return to Body\" verb in the IC tab."))
 
 /mob/living/proc/swap_languages(var/mob/target)
@@ -287,19 +298,99 @@ SUBSYSTEM_DEF(virtualreality)
 
 	mind_transfer(user, choice)
 
-
-/datum/controller/subsystem/virtualreality/proc/create_virtual_reality_avatar(var/mob/living/carbon/human/user)
+//TODO: copy origin, culture, citizenship, flavortext, etc. vars & iterate through organs in user.contents to dupe augments
+/datum/controller/subsystem/virtualreality/proc/create_virtual_reality_avatar(var/mob/living/carbon/human/user, var/realm = FALSE)
 	if(GLOB.virtual_reality_spawn.len)
-		var/mob/living/carbon/human/virtual_reality/H = new /mob/living/carbon/human/virtual_reality(pick(GLOB.virtual_reality_spawn))
-		H.set_species(user.species.name, 1)
+		if(realm)
+			var/mob/living/carbon/human/virtual_reality/realm/H = new /mob/living/carbon/human/virtual_reality/realm(pick(realmspawn))
+			H.set_species(user.species.name, 1)
 
-		H.gender = user.gender
-		H.dna = user.dna.Clone()
-		H.real_name = user.real_name
-		H.UpdateAppearance()
+			H.age = user.age
+			H.gender = user.gender
+			H.dna = user.dna.Clone()
+			H.real_name = user.real_name
+			H.culture = user.culture
+			H.origin = user.origin
+			H.citizenship = user.citizenship
+			H.religion = user.religion
+			H.accent = user.accent
+			H.height = user.height
+			H.employer_faction = user.employer_faction
+			H.flavor_texts = user.flavor_texts.Copy()
+			H.UpdateAppearance()
 
-		H.preEquipOutfit(/obj/outfit/admin/virtual_reality, FALSE)
-		H.equipOutfit(/obj/outfit/admin/virtual_reality, FALSE)
+			for(var/obj/item/organ/external/O in user.contents) //Copy robot limbs
+				if(BP_IS_ROBOTIC(O))
+					var/savedname = "[O.name]"
+					var/saveddesc = "[O.desc]"
+					var/savedtype = "[O.robotize_type]"
+					var/savedicon = "[O.force_icon]"
+					O = new O.type(H.loc)
+					O.name = "[savedname]"
+					O.desc = "[saveddesc]"
+					O.robotize_type = savedtype
+					O.force_icon = savedicon
+					var/obj/item/organ/external/targetpart = H.get_organ(O.parent_organ)
+					var/obj/item/organ/external/replaceme = H.organs_by_name[O.limb_name]
+					H.organs -= replaceme
+					H.contents -= replaceme
+					to_world("[O] is prosthetic! BP is [replaceme], robotized!")
+					O.robotize()
+					O.replaced(H, targetpart)
+					H.UpdateAppearance()
+					to_world("O:[O]")
 
-		mind_transfer(user, H)
-		to_chat(H, SPAN_NOTICE("You are now in control of a virtual reality body. Dying will return you to your original body."))
+			for(var/obj/item/organ/internal/O in user.contents) //Now copy internal augments & organs
+				if(BP_IS_ROBOTIC(O))
+					var/savedname = "[O.name]"
+					var/saveddesc = "[O.desc]"
+					var/savedtype = "[O.robotize_type]"
+					O = new O.type(H.loc)
+					O.name = "[savedname]"
+					O.desc = "[saveddesc]"
+					O.robotize_type = savedtype
+					var/obj/item/organ/external/targetpart = H.get_organ(O.parent_organ)
+					var/obj/item/organ/external/replaceme = H.internal_organs_by_name[O.organ_tag]
+					H.internal_organs -= replaceme
+					H.contents -= replaceme
+					O.robotize()
+					O.replaced(H, targetpart)
+					H.UpdateAppearance()
+
+			if(H.species.has_psionics)
+				H.species.has_psionics = FALSE //Otherwise avatars can affect the Nlom & appear in Srom
+
+			for(var/obj/item/i in user.get_equipped_items(INCLUDE_POCKETS|INCLUDE_HELD))
+				var/savedname = "[i.name]"
+				var/saveddesc = "[i.desc]"
+				var/savedcontents
+				if(istype(i, /obj/item/storage))
+					savedcontents = i.contents.Copy()
+				i = new i.type(H.loc)
+				i.name = "[savedname]"
+				i.desc = "[saveddesc]"
+				if(savedcontents)
+					i.contents = savedcontents
+				H.equip_to_appropriate_slot(i)
+
+			mind_transfer(user, H, TRUE)
+			to_chat(H, SPAN_NOTICE("You are now in the Aether. Dying will return you to the Cephalon."))
+		else
+			var/mob/living/carbon/human/virtual_reality/H = new /mob/living/carbon/human/virtual_reality(pick(GLOB.virtual_reality_spawn))
+			H.set_species(user.species.name, 1)
+
+			H.gender = user.gender
+			H.dna = user.dna.Clone()
+			H.real_name = user.real_name
+			H.UpdateAppearance()
+
+			H.preEquipOutfit(/obj/outfit/admin/virtual_reality, FALSE)
+			H.equipOutfit(/obj/outfit/admin/virtual_reality, FALSE)
+
+			mind_transfer(user, H)
+			to_chat(H, SPAN_NOTICE("You are now in control of a virtual reality body. Dying will return you to your original body."))
+
+/area/centcom/realm
+	name = "Virtual Realm"
+	icon_state = "realm"
+	area_blurb = "A local pocket realm of VR. Normally locked without a Ta's approval."

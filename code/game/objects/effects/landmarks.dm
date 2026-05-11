@@ -181,6 +181,15 @@ INITIALIZE_IMMEDIATE(/obj/effect/landmark/lobby_mobs_location)
 	GLOB.virtual_reality_spawn += get_turf(src)
 	return INITIALIZE_HINT_QDEL
 
+//For Vaurca VR
+/obj/effect/landmark/virtual_realm_spawn
+	invisibility = INVISIBILITY_ABSTRACT
+
+/obj/effect/landmark/virtual_realm_spawn/Initialize()
+	..()
+	SSvirtualreality.realmspawn += get_turf(src)
+	return INITIALIZE_HINT_QDEL
+
 /*##########################
 	THUNDERDOME LANDMARKS
 ##########################*/

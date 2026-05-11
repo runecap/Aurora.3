@@ -130,9 +130,11 @@
 
 	inherent_verbs = list(
 		/mob/living/carbon/human/proc/hivenet_recieve,
-		/mob/living/carbon/human/proc/hivenet_manifest
+		/mob/living/carbon/human/proc/hivenet_manifest,
+		/mob/living/carbon/human/proc/VRaccess,
+		/mob/living/carbon/human/proc/VRUnlock
 	)
-
+//Put a VR spawn in Runtime. Figure out a way to have a vaurca verb for create_vr_avatar
 	default_h_style = "Classic Antennae"
 
 	move_trail = /obj/effect/decal/cleanable/blood/tracks/claw
@@ -209,3 +211,60 @@
 	equip_adjust = list(
 		slot_head_str    = list("[EAST]" = list("x" = 0, "y" = 2), "[NORTH]" = list("x" = 0, "y" = 2), "[SOUTH]" = list("x" = 0, "y" = 2),  "[WEST]" = list("x" = 0, "y" = 2))
 	)
+
+/mob/living/carbon/human/proc/VRUnlock()
+	set name = "Unlock Realm"
+	set category = "Hivenet"
+
+	if(!SSvirtualreality.realmspawn.len)
+		to_chat(src, SPAN_WARNING("There is no local realm to unlock."))
+		return
+	if(SSvirtualreality.unlocked)
+		to_chat(src, SPAN_NOTICE("The local realm is already unlocked."))
+		return
+
+	to_chat(src, SPAN_NOTICE("You send a request to the Cephalon."))
+	sleep(5)
+	to_chat(src, SPAN_NOTICE("..."))
+	sleep(5)
+
+	if(within_jamming_range(src))
+		to_chat(src, SPAN_WARNING("...You feel no feedback."))
+		return
+	SSvirtualreality.unlocked = TRUE
+	to_chat(src, "<i><span class='game say'>Hivenet, <span class='name'>Cephalon</span> projects <span class='vaurca'>welcome.</span></span></i>")
+	to_chat(src, SPAN_NOTICE("You've unlocked the local realm."))
+
+/mob/living/carbon/human/proc/VRaccess()
+	set name = "Access Realm"
+	set category = "Hivenet"
+
+	if(!SSvirtualreality.realmspawn.len)
+		to_chat(src, SPAN_WARNING("There is no local realm to connect to."))
+		return
+	to_chat(src, SPAN_NOTICE("You launch a connection to the local realm."))
+	sleep(5)
+	to_chat(src, SPAN_NOTICE("..."))
+	sleep(5) //TODO have Cephalon message enter global Hivenet
+
+	if(src.accent == ACCENT_LIIDRA || findtext(src.real_name, "Lii'dra") || GLOB.all_languages[LANGUAGE_LIIDRA] in src.languages)
+		to_chat(src, "<i><span class='game say'>Hivenet, <span class='name'>Cephalon</span> projects <span class='vaurca'><b>[pick("alarm", "panic", "dread")]</b>.</span></span></i>")
+		to_chat(src, SPAN_DANGER("...As predicted, Our presence is actively blocked by the Cephalon's defenses. A connection to Paradise will never establish casually."))
+		sleep(5)
+		src.adjustHalLoss(20)
+		to_chat(src, SPAN_WARNING("You feel a sting!"))
+		to_chat(src, SPAN_DANGER("It's not just active defense against Us, but hostile countermeasures."))
+		return
+
+	if(src.origin.name == "Lii'kenka")
+		to_chat(src, SPAN_WARNING("...As expected, the Cephalon can tell apart your true pheromones without issue and denies access. The Aether will <b>never</b> grace you, certainly not this realm."))
+		return
+	if(within_jamming_range(src))
+		to_chat(src, SPAN_WARNING("...You can't establish a connection."))
+		return
+	if(!SSvirtualreality.unlocked)
+		to_chat(src, SPAN_WARNING("The local realm is locked."))
+		return
+	SSvirtualreality.create_virtual_reality_avatar(src, TRUE)
+
+//Have var/unlocked tied to a mapped-in Cephalon, then Access can simply check that variable

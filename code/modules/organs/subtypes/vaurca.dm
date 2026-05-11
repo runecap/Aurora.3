@@ -68,6 +68,8 @@
 	desc = "The single most important organ for a Vaurca, able to copy their mind into their Virtual Reality Afterlife upon death."
 	parent_organ = BP_HEAD
 	robotic = ROBOTIC_MECHANICAL
+	var/owner_info
+	var/realmperms = "Standard"
 	var/shielded = SOCKET_UNSHIELDED
 	var/muted = FALSE
 	var/banned = FALSE
@@ -102,6 +104,8 @@
 /obj/item/organ/internal/vaurca/neuralsocket/process()
 	if(!owner)
 		return
+	if(!owner_info)
+		owner_info = list("[owner.real_name]" = owner.age)
 	if(last_action > world.time)
 		last_action--
 	if (is_broken())
@@ -141,6 +145,7 @@
 	icon_state = "admin_socket"
 	var/remote_cast = FALSE //get out of death free card
 	adminperms = TRUE
+	realmperms = "Admin"
 	var/list/shielded_sockets = list() //sockets that you are currently protecting
 	var/list/shielded_mobs = list() //mobs that you are currently protecting
 	granted_verbs = list(

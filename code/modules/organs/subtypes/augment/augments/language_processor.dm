@@ -124,6 +124,7 @@
 	on_mob_icon = 'icons/mob/human_races/augments_external.dmi'
 	augment_languages = list(LANGUAGE_VAURCA)
 	granted_verbs = list(/mob/living/carbon/human/proc/hivenet_recieve, /mob/living/carbon/human/proc/phalanx_transmit)
+//	var/realmperms = "Visitor"
 	var/decryption_key
 	var/banned = FALSE
 	var/muted = FALSE
